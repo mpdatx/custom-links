@@ -118,6 +118,10 @@
       'Failed to get link info for ' + link.relative)
   }
 
+  cl.Backend.prototype.getLinks = function() {
+    return this.makeApiCall('GET', 'links', {})
+  }
+
   cl.Backend.prototype.deleteLink = function(link) {
     link = cl.createLinkInfo(link)
     return this.makeApiCall('DELETE', 'delete', link, undefined,
@@ -162,6 +166,7 @@
         container = document.getElementsByClassName('view-container')[0],
         routes = {
           '#': cl.linksView,
+          '#all': cl.allLinksView,
           '#create': cl.createLinkView,
           '#edit': cl.editLinkView
         },
@@ -355,6 +360,41 @@
         return linksView
       })
   }
+
+  cl.allLinksView = function() {
+    var element = cl.getTemplate('links-view'),
+        linksView = new cl.View(element, function() {
+          cl.focusFirstElement(element, 'a')
+        })
+
+    linksView.numLinks = 0
+    linksView.updateNumLinks = function(increment) {
+      var numLinks = (linksView.numLinks += increment),
+          result = numLinks + ' link' + (numLinks !== 1 ? 's' : '')
+      cl.applyData({ 'num-links': result }, element)
+    }
+
+    return cl.backend.getLinks()
+            .then(function(response) {
+              if (response.links === undefined || response.links.length === 0) {
+                return cl.getTemplate('no-links')
+              }
+              linksView.updateNumLinks(response.links.length)
+              return cl.createLinksTable(response.links, linksView)
+            })
+            .catch(function(err) {
+              var errMessage = cl.getTemplate('result failure')
+
+              errMessage.innerHTML = err.message
+              return errMessage
+            })
+            .then(function(resultElement) {
+              linksView.element.appendChild(resultElement)
+              return linksView
+            })
+  }
+
+
 
   cl.createLinksTable = function(links, linksView, options) {
     var linkTable = cl.getTemplate('links'),
